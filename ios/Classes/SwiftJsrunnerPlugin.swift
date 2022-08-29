@@ -133,7 +133,11 @@ extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
         }
     }
     
-    public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    public func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
         decisionHandler(decidePolicyForRequest(navigationAction.request))
     }
     
