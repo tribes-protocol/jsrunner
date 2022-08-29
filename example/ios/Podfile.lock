@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - jsrunner (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - jsrunner (from `.symlinks/plugins/jsrunner/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  jsrunner:
+    :path: ".symlinks/plugins/jsrunner/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 50d75fe2f02b26cc09d224853bb45737f8b3214a
+  jsrunner: 9edb0f0b2986ace466188251cd27113b6f08508f
+
+PODFILE CHECKSUM: aafe91acc616949ddb318b77800a7f51bffa2a4c
+
+COCOAPODS: 1.11.3
