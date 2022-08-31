@@ -1,0 +1,42 @@
+<html>
+
+<head>
+  <script>
+    const functions = {}
+
+    function call(json) {
+      const { uuid, funcName, args } = json
+      callAsync(uuid, funcName, args)
+      return true
+    }
+
+    async function callAsync(uuid, funcName, args) {
+      const bridge = window.webkit ? window.webkit.messageHandlers.native : window.native
+      try {
+        const result = await functions[funcName](...args)
+        console.log(`result ${JSON.stringify(result)}`)
+        bridge.postMessage(JSON.stringify({ uuid, value: result }))
+      } catch (e) {
+        console.error(`error calling ${funcName}: ${e} `, e)
+        const bridge = window.webkit ? window.webkit.messageHandlers.native : window.native
+        bridge.postMessage(JSON.stringify({ uuid, error: { message: e?.message, code: e?.code } }))
+      }
+    }
+
+    window.call = call
+
+    async function randomFunc(name, age, array) {
+      console.log('randomFunc')
+      return { name, age, array }
+    }
+
+    functions.randomFunc = randomFunc
+
+  </script>
+</head>
+
+<body>
+
+</body>
+
+</html>

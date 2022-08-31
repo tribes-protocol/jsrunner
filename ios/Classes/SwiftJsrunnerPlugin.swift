@@ -18,13 +18,12 @@ public class SwiftJsrunnerPlugin: NSObject, FlutterPlugin {
         guard let method = CallMethod(rawValue: call.method) else { return }
         
         switch method {
-        case .setOptions: setupOptions(call)
-        case .evalJavascript: evalJavascript(call)
-        case .loadHTML: loadHTML(call)
-        case .loadUrl: loadUrl(call)
+        case .setOptions: setupOptions(call, result: result)
+        case .evalJavascript: evalJavascript(call, result: result)
+        case .loadHTML: loadHTML(call, result: result)
+        case .loadUrl: loadUrl(call, result: result)
+        case .call: callFunction(call, result: result)
         }
-
-        result(nil)
     }
     
     init(withChannel channel: FlutterMethodChannel) {
@@ -63,11 +62,13 @@ enum CallMethod: String {
     case evalJavascript = "evalJavascript"
     case loadHTML = "loadHTML"
     case loadUrl = "loadUrl"
+    case call = "call"
 }
 
 extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
     
-    private func setupOptions(_ call: FlutterMethodCall) {
+    private func setupOptions(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        defer { result(nil) }
         guard let arguments = call.arguments as? [String: Any] else { return }
         
         if let restrictedSchemes = arguments["restrictedSchemes"] as? [String] {
@@ -75,25 +76,56 @@ extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
         }
     }
     
-    private func evalJavascript(_ call: FlutterMethodCall) {
+    private func callFunction(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard
             let arguments = call.arguments as? [String: Any],
-            let script = arguments["script"] as? String
-            else { return }
+            let request = arguments["request"] as? String
+        else { return result(nil) }
         
         validateWebView()
         
-        webView.evaluateJavaScript(script) { result, err in
-            print("result \(result)")
-            print("error \(err)")
-        } //evaluateJavaScript(script, completionHandler: nil)
+        let script = "window.call(\(request))"
+        
+        webView.evaluateJavaScript(script) { value, err in
+            if let value = value {
+                print("result \(value)")
+            }
+            
+            if let err = err {
+                print("error \(err)")
+            }
+            
+            result(nil)
+        }
     }
     
-    private func loadHTML(_ call: FlutterMethodCall) {
+    private func evalJavascript(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard
+            let arguments = call.arguments as? [String: Any],
+            let script = arguments["script"] as? String
+        else { return result(nil) }
+        
+        validateWebView()
+        
+        webView.evaluateJavaScript(script) { value, err in
+            if let value = value {
+                print("result \(value)")
+            }
+            
+            if let err = err {
+                print("error \(err)")
+            }
+            
+            result(nil)
+        }
+    }
+    
+    private func loadHTML(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        defer { result(nil) }
         guard
             let arguments = call.arguments as? [String: Any],
             let html = arguments["html"] as? String
-            else { return }
+        else { return }
         
         validateWebView()
         
@@ -104,12 +136,13 @@ extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
         }
     }
     
-    private func loadUrl(_ call: FlutterMethodCall) {
+    private func loadUrl(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        defer { result(nil) }
         guard
             let arguments = call.arguments as? [String: Any],
             let urlString = arguments["url"] as? String,
             let url = URL(string: urlString)
-            else { return }
+        else { return }
         
         validateWebView()
         
@@ -126,7 +159,7 @@ extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
         guard let body = message.body as? String else { return }
         
         if let data = body.data(using: .utf8),
-            let jsonObj = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) {
+           let jsonObj = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) {
             channel.invokeMethod("didReceiveMessage", arguments: ["name": message.name, "data": jsonObj])
         } else {
             channel.invokeMethod("didReceiveMessage", arguments: ["name": message.name, "data": body])

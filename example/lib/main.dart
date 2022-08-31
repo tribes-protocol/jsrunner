@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jsrunner/jsrunner.dart';
 
 void main() {
@@ -28,14 +29,14 @@ class _MyAppState extends State<MyApp> {
     Jsrunner.shared.didReceiveMessage.listen((message) {
       debugPrint('didReceiveMessage: $message');
     });
-
-    Jsrunner.shared.loadHTML('<html>'
-        '<head><script>'
-        'window.x = window.webkit ? window.webkit.messageHandlers.native : window.native;'
-        '</script></head>'
-        '<body></body></html>');
+    _loadExampleHtml();
 
     debugPrint('state init\'ed');
+  }
+
+  Future<void> _loadExampleHtml() async {
+    final html = await rootBundle.loadString('lib/example.html');
+    await Jsrunner.shared.loadHTML(html);
   }
 
   @override
@@ -63,8 +64,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _callJS() async {
-    await Jsrunner.shared.evalJavascript(
-      'window.x.postMessage(\'{ "name": "hello world" }\'); true;',
-    );
+    final result = await Jsrunner.shared.call("randomFunc", [
+      1,
+      "hello",
+      [3, "x"]
+    ]);
+    debugPrint('result: $result');
   }
 }

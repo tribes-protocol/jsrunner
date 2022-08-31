@@ -76,34 +76,55 @@ class JsrunnerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   override fun onMethodCall(call: MethodCall, result: Result): Unit {
     val method = CallMethod.valueOf(call.method)
     when (method) {
-      CallMethod.setOptions -> setOptions(call)
-      CallMethod.evalJavascript -> evalJavascript(call)
-      CallMethod.loadHTML -> loadHTML(call)
-      CallMethod.loadUrl -> loadUrl(call)
+      CallMethod.setOptions -> setOptions(call, result)
+      CallMethod.evalJavascript -> evalJavascript(call, result)
+      CallMethod.loadHTML -> loadHTML(call, result)
+      CallMethod.loadUrl -> loadUrl(call, result)
+      CallMethod.call -> callFunc(call, result)
     }
-
-    result.success(null)
   }
 
-  private fun setOptions(call: MethodCall) {
+  private fun setOptions(call: MethodCall, result: Result) {
     (call.arguments as? HashMap<*, *>)?.let {
       val restrictedSchemes = it["restrictedSchemes"]
       if (restrictedSchemes is Array<*>)
         webClient.restrictedSchemes = restrictedSchemes.filterIsInstance<String>()
     }
+
+    result.success(null)
   }
 
-  private fun evalJavascript(call: MethodCall) {
+  private fun callFunc(call: MethodCall, result: Result) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-      (call.arguments as? HashMap<*, *>)?.let { arguments ->
-        (arguments["script"] as? String)?.let {
-          webView.evaluateJavascript(it, null)
+      val arguments = call.arguments as? HashMap<*, *>
+      var request = arguments?.get("request") as? String
+      if (request != null) {
+        val script = "window.call($request)"
+        webView.evaluateJavascript(script) {
+          result.success(null)
         }
+        return;
       }
     }
+    result.success(null)
   }
 
-  private fun loadHTML(call: MethodCall) {
+  private fun evalJavascript(call: MethodCall, result: Result) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      val arguments = call.arguments as? HashMap<*, *>
+      var script = arguments?.get("script") as? String
+      if (script != null) {
+        webView.evaluateJavascript(script) {
+          result.success(null)
+        }
+        return;
+      }
+    }
+
+    result.success(null)
+  }
+
+  private fun loadHTML(call: MethodCall, result: Result) {
     (call.arguments as? HashMap<*, *>)?.let { arguments ->
       val html = arguments["html"] as String
       if (arguments.containsKey("baseUrl")) {
@@ -114,13 +135,15 @@ class JsrunnerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         webView.loadData(html, "text/html", "UTF-8")
       }
     }
+    result.success(null)
   }
 
-  private fun loadUrl(call: MethodCall) {
+  private fun loadUrl(call: MethodCall, result: Result) {
     (call.arguments as? HashMap<*, *>)?.let { arguments ->
       val url = arguments["url"] as String
       webView.loadUrl(url)
     }
+    result.success(null)
   }
 
   override fun onDetachedFromActivityForConfigChanges() {
@@ -240,5 +263,5 @@ class JsInterface {
 }
 
 enum class CallMethod {
-  setOptions, evalJavascript, loadHTML, loadUrl
+  setOptions, evalJavascript, loadHTML, loadUrl, call
 }
