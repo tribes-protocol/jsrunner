@@ -36,7 +36,18 @@ class Jsrunner {
         );
         _didReceiveMessage.add(msg);
 
-        final response = _Response.fromMap(Map<String, dynamic>.from(msg.data));
+        final data = msg.data;
+        final response = _Response(
+          data['uuid'],
+          data['value'],
+          data['error'] == null
+              ? null
+              : _ResponseError(
+                  data['error']['message'] as String,
+                  data['error']['code'] as int?,
+                ),
+        );
+
         final callback = _callbacks[response.uuid];
         if (callback == null) {
           return;
@@ -161,10 +172,6 @@ class _ResponseError implements Exception {
   int? code;
 
   _ResponseError(this.message, this.code);
-
-  factory _ResponseError.fromMap(Map<String, dynamic> map) {
-    return _ResponseError(map['message'] as String, map['code'] as int?);
-  }
 }
 
 class _Response {
@@ -173,12 +180,4 @@ class _Response {
   _ResponseError? error;
 
   _Response(this.uuid, this.value, this.error);
-
-  factory _Response.fromMap(Map<String, dynamic> map) {
-    return _Response(
-      map['uuid'],
-      map['value'],
-      map['error'] == null ? null : _ResponseError.fromMap(map['error']),
-    );
-  }
 }

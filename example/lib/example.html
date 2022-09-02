@@ -30,7 +30,13 @@
       return { name, age, array }
     }
 
+    async function failureFunc(name) {
+      console.log('failureFunc')
+      throw new Error('failureFunc_called_' + name)
+    }
+
     functions.randomFunc = randomFunc
+    functions.failureFunc = failureFunc
 
   </script>
 </head>

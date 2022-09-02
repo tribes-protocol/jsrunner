@@ -56,6 +56,10 @@ class _MyAppState extends State<MyApp> {
                 onPressed: () => _callJS(),
                 child: const Text('Call Code'),
               ),
+              TextButton(
+                onPressed: () => _callFailureJS(),
+                child: const Text('Call Failure Code'),
+              ),
             ],
           ),
         ),
@@ -70,5 +74,12 @@ class _MyAppState extends State<MyApp> {
       [3, "x"]
     ]);
     debugPrint('result: $result');
+  }
+
+  Future<void> _callFailureJS() async {
+    final result = await Jsrunner.shared.call("failureFunc", [
+      "hish",
+    ]);
+    debugPrint('failure result: $result');
   }
 }
