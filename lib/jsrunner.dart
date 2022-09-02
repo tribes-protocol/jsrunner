@@ -42,7 +42,7 @@ class Jsrunner {
           data['value'],
           data['error'] == null
               ? null
-              : _ResponseError(
+              : JsrunnerResponseError(
                   data['error']['message'] as String,
                   data['error']['code'] as int?,
                 ),
@@ -167,17 +167,22 @@ class WebkitMessage {
   }
 }
 
-class _ResponseError implements Exception {
+class JsrunnerResponseError implements Exception {
   String message;
   int? code;
 
-  _ResponseError(this.message, this.code);
+  JsrunnerResponseError(this.message, this.code);
+
+  @override
+  String toString() {
+    return [code?.toInt(), message].where((e) => e != null).join(': ');
+  }
 }
 
 class _Response {
   String uuid;
   dynamic value;
-  _ResponseError? error;
+  JsrunnerResponseError? error;
 
   _Response(this.uuid, this.value, this.error);
 }
