@@ -73,15 +73,31 @@ class JsrunnerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
 
-  override fun onMethodCall(call: MethodCall, result: Result): Unit {
+  override fun onMethodCall(call: MethodCall, result: Result) {
     val method = CallMethod.valueOf(call.method)
     when (method) {
       CallMethod.setOptions -> setOptions(call, result)
       CallMethod.evalJavascript -> evalJavascript(call, result)
       CallMethod.loadHTML -> loadHTML(call, result)
       CallMethod.loadUrl -> loadUrl(call, result)
-      CallMethod.call -> callFunc(call, result)
+      CallMethod.callJS -> callJS(call, result)
+      CallMethod.respondToNative -> respondToNative(call, result)
     }
+  }
+
+  private fun respondToNative(call: MethodCall, result: Result) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      val arguments = call.arguments as? HashMap<*, *>
+      val request = arguments?.get("response") as? String
+      if (request != null) {
+        val script = "window.respondToNative($request)"
+        webView.evaluateJavascript(script) {
+          result.success(null)
+        }
+        return
+      }
+    }
+    result.success(null)
   }
 
   private fun setOptions(call: MethodCall, result: Result) {
@@ -94,16 +110,16 @@ class JsrunnerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     result.success(null)
   }
 
-  private fun callFunc(call: MethodCall, result: Result) {
+  private fun callJS(call: MethodCall, result: Result) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
       val arguments = call.arguments as? HashMap<*, *>
-      var request = arguments?.get("request") as? String
+      val request = arguments?.get("request") as? String
       if (request != null) {
-        val script = "window.call($request)"
+        val script = "window.callJS($request)"
         webView.evaluateJavascript(script) {
           result.success(null)
         }
-        return;
+        return
       }
     }
     result.success(null)
@@ -112,12 +128,12 @@ class JsrunnerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private fun evalJavascript(call: MethodCall, result: Result) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
       val arguments = call.arguments as? HashMap<*, *>
-      var script = arguments?.get("script") as? String
+      val script = arguments?.get("script") as? String
       if (script != null) {
         webView.evaluateJavascript(script) {
           result.success(null)
         }
-        return;
+        return
       }
     }
 
@@ -263,5 +279,5 @@ class JsInterface {
 }
 
 enum class CallMethod {
-  setOptions, evalJavascript, loadHTML, loadUrl, call
+  setOptions, evalJavascript, loadHTML, loadUrl, callJS, respondToNative
 }

@@ -22,7 +22,8 @@ public class SwiftJsrunnerPlugin: NSObject, FlutterPlugin {
         case .evalJavascript: evalJavascript(call, result: result)
         case .loadHTML: loadHTML(call, result: result)
         case .loadUrl: loadUrl(call, result: result)
-        case .call: callFunction(call, result: result)
+        case .callJS: callJS(call, result: result)
+        case .respondToNative: respondToNative(call, result: result)
         }
     }
     
@@ -62,7 +63,8 @@ enum CallMethod: String {
     case evalJavascript = "evalJavascript"
     case loadHTML = "loadHTML"
     case loadUrl = "loadUrl"
-    case call = "call"
+    case callJS = "callJS"
+    case respondToNative = "respondToNative"
 }
 
 extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
@@ -76,7 +78,7 @@ extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
         }
     }
     
-    private func callFunction(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    private func callJS(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard
             let arguments = call.arguments as? [String: Any],
             let request = arguments["request"] as? String
@@ -84,7 +86,30 @@ extension SwiftJsrunnerPlugin: WKScriptMessageHandler, WKNavigationDelegate {
         
         validateWebView()
         
-        let script = "window.call(\(request))"
+        let script = "window.callJS(\(request))"
+        
+        webView.evaluateJavaScript(script) { value, err in
+            if let value = value {
+                print("result \(value)")
+            }
+            
+            if let err = err {
+                print("error \(err)")
+            }
+            
+            result(nil)
+        }
+    }
+    
+    private func respondToNative(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard
+            let arguments = call.arguments as? [String: Any],
+            let response = arguments["response"] as? String
+        else { return result(nil) }
+        
+        validateWebView()
+        
+        let script = "window.respondToNative(\(response))"
         
         webView.evaluateJavaScript(script) { value, err in
             if let value = value {

@@ -29,6 +29,11 @@ class _MyAppState extends State<MyApp> {
     Jsrunner.shared.didReceiveMessage.listen((message) {
       debugPrint('didReceiveMessage: $message');
     });
+
+    Jsrunner.shared.registerHandler('testMethod', (args) async {
+      return 'FROM dart => $args';
+    });
+
     _loadExampleHtml();
 
     debugPrint('state init\'ed');
@@ -68,7 +73,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _callJS() async {
-    final result = await Jsrunner.shared.call("randomFunc", [
+    final result = await Jsrunner.shared.callJS("randomFunc", [
       1,
       "hello",
       [3, "x"]
@@ -77,7 +82,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _callFailureJS() async {
-    final result = await Jsrunner.shared.call("failureFunc", [
+    final result = await Jsrunner.shared.callJS("failureFunc", [
       "hish",
     ]);
     debugPrint('failure result: $result');

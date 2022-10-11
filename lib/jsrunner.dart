@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+
+typedef JsFlutterHandler = Future<dynamic> Function(List<dynamic> args);
 
 class Jsrunner {
   final MethodChannel _channel = const MethodChannel('jsrunner');
@@ -10,6 +13,7 @@ class Jsrunner {
   final _callbacks = <String, StreamController<dynamic>>{};
   final _stateChanged = StreamController<WebViewStateChanged>.broadcast();
   final _didReceiveMessage = StreamController<WebkitMessage>.broadcast();
+  final _handlers = <String, JsFlutterHandler>{};
 
   Stream<WebViewStateChanged> get stateChanged => _stateChanged.stream;
   Stream<WebkitMessage> get didReceiveMessage => _didReceiveMessage.stream;
@@ -18,6 +22,11 @@ class Jsrunner {
 
   Jsrunner._() {
     _channel.setMethodCallHandler(_handleMessages);
+  }
+
+  void registerHandler(String funcName, JsFlutterHandler handler) {
+    assert(_handlers[funcName] == null);
+    _handlers[funcName] = handler;
   }
 
   Future<void> _handleMessages(MethodCall call) async {
@@ -34,39 +43,89 @@ class Jsrunner {
         final msg = WebkitMessage.fromMap(
           Map<String, dynamic>.from(call.arguments),
         );
+
         _didReceiveMessage.add(msg);
 
-        final data = msg.data;
-        final response = _Response(
-          data['uuid'],
-          data['value'],
-          data['error'] == null
-              ? null
-              : JsrunnerResponseError(
-                  data['error']['message'] as String,
-                  data['error']['code'] as int?,
-                ),
-        );
+        try {
+          final data = msg.data;
+          final callType = _CallType.fromString(data['type']);
 
-        final callback = _callbacks[response.uuid];
-        if (callback == null) {
-          return;
-        }
+          switch (callType) {
+            case _CallType.request:
+              await _handleRequestCallType(msg);
+              break;
 
-        final error = response.error;
-        _callbacks.remove(response.uuid);
-
-        if (error != null) {
-          callback.addError(error);
-        } else {
-          callback.add(response.value as dynamic);
+            case _CallType.response:
+              _handleResponseCallType(msg);
+              break;
+          }
+        } catch (e) {
+          debugPrint('error on didReceiveMessge $e');
         }
 
         break;
     }
   }
 
-  Future<T> call<T>(String funcName, [dynamic arguments]) async {
+  Future<void> _handleRequestCallType(WebkitMessage msg) async {
+    final args = List<dynamic>.from(msg.data['args']);
+    final handler = _handlers[msg.data['funcName']];
+
+    if (handler == null) {
+      await deliverResponseFromNative(
+        funcName: msg.data['funcName'],
+        uuid: msg.data['uuid'],
+        error: "${msg.data['funcName']} Handler not found",
+      );
+      return;
+    }
+
+    try {
+      final result = await handler(args);
+      await deliverResponseFromNative(
+        funcName: msg.data['funcName'],
+        uuid: msg.data['uuid'],
+        value: jsonEncode(result),
+      );
+    } catch (e) {
+      await deliverResponseFromNative(
+        funcName: msg.data['funcName'],
+        uuid: msg.data['uuid'],
+        error: "$e",
+      );
+      debugPrint('error on handleRequestCallType $e');
+    }
+  }
+
+  void _handleResponseCallType(WebkitMessage msg) {
+    final data = msg.data;
+    final response = _Response(
+      data['uuid'],
+      data['value'],
+      data['error'] == null
+          ? null
+          : JsrunnerResponseError(
+              data['error']['message'] as String,
+              data['error']['code'] as int?,
+            ),
+    );
+
+    final callback = _callbacks[response.uuid];
+    if (callback == null) {
+      return;
+    }
+
+    final error = response.error;
+    _callbacks.remove(response.uuid);
+
+    if (error != null) {
+      callback.addError(error);
+    } else {
+      callback.add(response.value as dynamic);
+    }
+  }
+
+  Future<T> callJS<T>(String funcName, [dynamic arguments]) async {
     final subject = StreamController<T>();
     final uuid = _uuid.v4();
 
@@ -80,9 +139,27 @@ class Jsrunner {
       }),
     };
 
-    await _channel.invokeMethod('call', args);
+    await _channel.invokeMethod('callJS', args);
 
     return subject.stream.first;
+  }
+
+  Future<void> deliverResponseFromNative<T>({
+    required String funcName,
+    required String uuid,
+    String? value,
+    String? error,
+  }) async {
+    final args = <String, dynamic>{
+      'response': jsonEncode({
+        'uuid': uuid,
+        'funcName': funcName,
+        if (value != null) 'value': value,
+        if (error != null) 'error': error,
+      }),
+    };
+
+    await _channel.invokeMethod('respondToNative', args);
   }
 
   Future<void> setOptions({
@@ -185,4 +262,20 @@ class _Response {
   JsrunnerResponseError? error;
 
   _Response(this.uuid, this.value, this.error);
+}
+
+enum _CallType {
+  response,
+  request;
+
+  factory _CallType.fromString(String value) {
+    switch (value) {
+      case 'response':
+        return _CallType.response;
+
+      case 'request':
+        return _CallType.request;
+    }
+    throw Exception('Unknown _CallType: $value');
+  }
 }
