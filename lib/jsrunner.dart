@@ -85,7 +85,7 @@ class Jsrunner {
       await deliverResponseFromNative(
         funcName: msg.data['funcName'],
         uuid: msg.data['uuid'],
-        value: jsonEncode(result),
+        value: result,
       );
     } catch (e) {
       await deliverResponseFromNative(
