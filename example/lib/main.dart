@@ -40,8 +40,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _loadExampleHtml() async {
-    final html = await rootBundle.loadString('lib/example.html');
-    await Jsrunner.shared.loadHTML(html);
+    // final html = await rootBundle.loadString('lib/example.html');
+    final js = await rootBundle.loadString('lib/example.js');
+    //  await Jsrunner.shared.loadHTML(html);
+
+    await Jsrunner.shared.evalJavascript(js);
   }
 
   @override
@@ -78,7 +81,7 @@ class _MyAppState extends State<MyApp> {
       "hello",
       [3, "x"]
     ]);
-    debugPrint('result: $result');
+    debugPrint(' --> result: $result');
   }
 
   Future<void> _callFailureJS() async {
